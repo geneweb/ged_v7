@@ -1,5 +1,7 @@
 (lang dune 3.7)
 
+(using menhir 2.1)
+
 (name ged_v7)
 
 (generate_opam_files true)

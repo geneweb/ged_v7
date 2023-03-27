@@ -36,7 +36,12 @@ let enum = [%sedlex.regexp? std_tag | integer | ext_tag]
 module Ast_1 = struct
   exception Lexing_error of string
 
-  type token = Tag_n of int | Tag of string | Xref of string | Value of string
+  type token =
+    | Tag_n of int
+    | Tag of string
+    | Xref of string
+    | Value of string
+    | Eof
 
   let pp_token fmt tok =
     match tok with
@@ -44,6 +49,7 @@ module Ast_1 = struct
     | Tag s -> Format.fprintf fmt "Tag %s" s
     | Xref s -> Format.fprintf fmt "Xref %s" s
     | Value s -> Format.fprintf fmt "Value %s" s
+    | Eof -> Format.fprintf fmt "Eof"
 
   let print_token tok = Format.printf "%a@." pp_token tok
 
@@ -94,14 +100,14 @@ module Ast_1 = struct
           Option.to_list value @ (tag :: Option.to_list xref) @ (n :: acc)
         in
         parse acc buf
-    | eof -> List.rev acc
+    | eof -> List.rev (Eof :: acc)
     | _ -> raise (Lexing_error "Reached impossible place in parse")
 end
 
 (* changes Tag_n for END tokens to make structure defined by TAG ... END brackets *)
 (* remove extension tags *)
 module Ast_2 = struct
-  type token = End | Tag of string | Xref of string | Value of string
+  type token = End | Tag of string | Xref of string | Value of string | Eof
 
   exception Gedcom_structure_error
 
@@ -111,12 +117,13 @@ module Ast_2 = struct
     | Tag s -> Format.fprintf fmt "Tag %s" s
     | Xref s -> Format.fprintf fmt "Xref %s" s
     | Value s -> Format.fprintf fmt "Value %S" s
+    | Eof -> Format.fprintf fmt "Eof"
 
   let print_token tok = Format.printf "%a@." pp_token tok
 
   (* convert tokens
      remove Tag_n and add End tokens*)
-  let convert tokens =
+  let from_ast_1 tokens =
     let last_n = ref (-1) in
     List.fold_left
       (fun acc token ->
@@ -124,6 +131,7 @@ module Ast_2 = struct
         | Ast_1.Tag s -> Tag s :: acc
         | Xref s -> Xref s :: acc
         | Value s -> Value s :: acc
+        | Eof -> Eof :: (* add End for TRLR *) End :: acc
         | Tag_n n ->
             let ends =
               if n > !last_n then []
@@ -132,7 +140,7 @@ module Ast_2 = struct
             last_n := n;
             ends @ acc)
       [] tokens
-    |> (* End for TRLR tag *) List.cons End |> List.rev
+    |> List.rev
 
   let trash_extensions tokens =
     (* if we see a extension tag, we increment this ref,
@@ -145,7 +153,7 @@ module Ast_2 = struct
           (* if we are in an extension tag we want to ignore this token *)
           let c =
             match token with
-            | Value _ | Xref _ -> 0
+            | Value _ | Xref _ | Eof -> 0
             | End ->
                 (* we go down one level for each End *)
                 -1
@@ -157,7 +165,7 @@ module Ast_2 = struct
         else
           (* if we are not in an extension tag we check if we are on a new tag, which may be an extension tag *)
           match token with
-          | (Xref _ | Value _ | End) as token -> (0, token :: acc)
+          | (Xref _ | Value _ | End | Eof) as token -> (0, token :: acc)
           | Tag s as token ->
               if String.starts_with ~prefix:"_" s then
                 (* we switch to extension tag mode (ext_tag_level_count > 0)*)
@@ -186,6 +194,18 @@ module Ast_2 = struct
     in
     flatten_cont [] l |> List.rev
 
+  let to_menhir_tokens tokens =
+    List.map
+      (function
+        | End -> Menhir_parser.END
+        | Eof -> EOF
+        | Tag s -> Token.of_string s
+        | Xref s ->
+            let ptr = if s = "@VOID@" then None else Some s in
+            XREF ptr
+        | Value s -> VALUE s)
+      tokens
+
   let make (tokens : Ast_1.token list) =
-    tokens |> convert |> trash_extensions |> flatten_cont
+    from_ast_1 tokens |> trash_extensions |> flatten_cont |> to_menhir_tokens
 end

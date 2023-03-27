@@ -1,3 +1,5 @@
+open Menhir_parser
+
 let read_file fname =
   let ic = open_in fname in
   let len = in_channel_length ic in
@@ -25,7 +27,7 @@ let _files =
 let () =
   let s =
     read_file
-      (String.concat Filename.dir_sep [ "test"; "assets"; "minimal70.ged" ])
+      (String.concat Filename.dir_sep [ "test"; "assets"; "maximal70.ged" ])
   in
   Format.printf "--- Ast_1 @.";
   let lexbuf = Sedlexing.Utf8.from_string s in
@@ -35,6 +37,24 @@ let () =
   Format.printf "@.";
   Format.printf "--- Ast_2 @.";
   let tokens = Line.Ast_2.make tokens in
-  List.iter Line.Ast_2.print_token tokens;
+  List.iter Token.print tokens;
   Format.printf "--- @.";
+
+  let provider =
+    let tokens = ref tokens in
+    Format.printf "@.@.@. --- MENHIR --- @.@.@.";
+    let dummy_pos = Stdlib.Lexing.dummy_pos in
+    fun () ->
+      match !tokens with
+      | [] -> (EOF, dummy_pos, dummy_pos)
+      | tok :: l ->
+          tokens := l;
+          Token.print tok;
+          (* TODO start stop? *)
+          (tok, dummy_pos, dummy_pos)
+  in
+  let parser =
+    MenhirLib.Convert.Simplified.traditional2revised Menhir_parser.gedcom
+  in
+  let _gedcom = parser provider in
   ()
