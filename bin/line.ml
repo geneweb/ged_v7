@@ -110,9 +110,29 @@ module Ast_2 = struct
     | End -> Format.fprintf fmt "End"
     | Tag s -> Format.fprintf fmt "Tag %s" s
     | Xref s -> Format.fprintf fmt "Xref %s" s
-    | Value s -> Format.fprintf fmt "Value %s" s
+    | Value s -> Format.fprintf fmt "Value %S" s
 
   let print_token tok = Format.printf "%a@." pp_token tok
+
+  (* convert tokens
+     remove Tag_n and add End tokens*)
+  let convert tokens =
+    let last_n = ref (-1) in
+    List.fold_left
+      (fun acc token ->
+        match token with
+        | Ast_1.Tag s -> Tag s :: acc
+        | Xref s -> Xref s :: acc
+        | Value s -> Value s :: acc
+        | Tag_n n ->
+            let ends =
+              if n > !last_n then []
+              else List.init (!last_n - n + 1) (fun _i -> End)
+            in
+            last_n := n;
+            ends @ acc)
+      [] tokens
+    |> (* End for TRLR tag *) List.cons End |> List.rev
 
   let trash_extensions tokens =
     (* if we see a extension tag, we increment this ref,
@@ -145,27 +165,27 @@ module Ast_2 = struct
                 let acc = match acc with Xref _ :: l -> l | _l -> acc in
                 (1, acc)
               else (0, token :: acc))
-      (0, []) tokens |> snd |> List.rev
+      (0, []) tokens
+    |> snd |> List.rev
 
-  (* convert tokens
-     remove Tag_n and add End tokens*)
-  let convert tokens =
-    let last_n = ref (-1) in
-    List.fold_left
-      (fun acc token ->
-        match token with
-        | Ast_1.Tag s -> Tag s :: acc
-        | Xref s -> Xref s :: acc
-        | Value s -> Value s :: acc
-        | Tag_n n ->
-            let ends =
-              if n > !last_n then []
-              else List.init (!last_n - n + 1) (fun _i -> End)
-            in
-            last_n := n;
-            ends @ acc)
-      [] tokens
-    |> (* End for TRLR tag *) List.cons End |> List.rev
+  let flatten_cont l =
+    let rec get_conts acc l =
+      match l with
+      | Tag "CONT" :: Value cont :: End :: l -> get_conts (cont :: acc) l
+      | Tag "CONT" :: End :: l -> get_conts ("" :: acc) l
+      | _ -> (List.rev acc, l)
+    in
+    let rec flatten_cont acc l =
+      match l with
+      | [] -> acc
+      | Value s :: l ->
+          let conts, l = get_conts [] l in
+          let acc = Value (String.concat "\n" (s :: conts)) :: acc in
+          flatten_cont acc l
+      | x :: l -> flatten_cont (x :: acc) l
+    in
+    flatten_cont [] l |> List.rev
 
-  let make (tokens : Ast_1.token list) = tokens |> convert |> trash_extensions
+  let make (tokens : Ast_1.token list) =
+    tokens |> convert |> trash_extensions |> flatten_cont
 end
