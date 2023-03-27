@@ -8,7 +8,19 @@ let read_file fname =
   if String.starts_with ~prefix:bom s then String.sub s 3 (String.length s - 3)
   else s
 
-let () = print_endline "Hello, World!"
+let _files =
+  [
+    "escapes.ged";
+    "long-url.ged";
+    "minimal70.ged";
+    "remarriage2.ged";
+    "spaces.ged";
+    "extension-record.ged";
+    "maximal70.ged";
+    "remarriage1.ged";
+    "same-sex-marriage.ged";
+    "voidptr.ged";
+  ]
 
 let () =
   let s =
@@ -25,8 +37,4 @@ let () =
   let tokens = Line.Ast_2.make tokens in
   List.iter Line.Ast_2.print_token tokens;
   Format.printf "--- @.";
-  (*
-  let tokens = Line.Ast_2.make tokens in
-  List.iter Line.Ast_2.print_token tokens;
-  *)
   ()
