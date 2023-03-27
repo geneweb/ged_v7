@@ -12,37 +12,84 @@
 %start <Types.gedcom> gedcom
 %%
 
-let line(TAG_NAME) ==
-  | TAG_NAME; v = VALUE; END;
+(* -- Helper functions -- *)
+
+let line(X) ==
+  | X; v = VALUE; END;
   { v }
 
-(* a line with value a XREF *)
-let xref_line(TAG_NAME) ==
-  | TAG_NAME; v = XREF; END;
+let xref_line(X) ==
+  | X; v = XREF; END;
   { v }
+
+let line_line(X,Y) ==
+  | X;
+    a = VALUE;
+    b = line(Y);
+    END;
+  {a,b}
+
+let line_line_opt(X,Y) ==
+  | X;
+    a = VALUE;
+    b = option(line(Y));
+    END;
+  {a,b}
+
+let exid ==
+  | (exid,t) = line_line_opt(EXID,TYPE);
+  {{exid;type'=t}}
+
+let role_phrase ==
+  | (role,phrase) = line_line_opt(ROLE,PHRASE);
+  {{role; phrase}}
+
+let age_phrase ==
+  | (age,phrase) = line_line_opt(AGE,PHRASE);
+  {{age; phrase}}
+
+let value_phrase(X) ==
+  | (value,phrase) = line_line_opt(X,PHRASE);
+  {{value; phrase}}
+
+let xref_phrase(X) ==
+  | X; xref = XREF; phrase = option(line(PHRASE)); END;
+  {{xref; phrase}}
+
+let type_phrase ==
+  | (t,phrase) = line_line_opt(TYPE,PHRASE);
+  {{type'=t;phrase}}
+
+let adoption_phrase ==
+  | (adoption,phrase) = line_line_opt(ADOP,PHRASE);
+  {{adoption; phrase}}
+
+let date_exact_time ==
+  | (date,time) = line_line_opt(DATE,TIME);
+    {{date;time}}
+
+let date_phrase ==
+  | (date,phrase) = line_line_opt(DATE,PHRASE);
+    {{date;phrase}}
+
+let role ==
+  | (role,phrase) = line_line_opt(ROLE,PHRASE);
+  {{role;phrase}}
+
+(* -- Miscs -- *)
+
+let place_translation ==
+  | (a,b) = line_line(TRAN,LANG);
+  {{translation=a; language=b}}
 
 let schema ==
   | SCHMA; l = list(line(TAG)); END;
   {l}
 
-let address ==
-  | ADDR;
-    address = VALUE;
-    adr1 = option(line(ADR1));
-    adr2 = option(line(ADR2));
-    adr3 = option(line(ADR3));
-    city = option(line(CITY));
-    state = option(line(STAE));
-    postal_code = option(line(POST));
-    country = option(line(CTRY));
-    END;
-  {{ address; adr1; adr2; adr3; city; state;
-    postal_code; country }}
-
 let corporation ==
   | CORP;
     corporation = VALUE;
-    address = option(address);
+    address = option(address_structure);
     phone = list(line(PHON));
     email = list(line(EMAIL));
     fax = list(line(FAX));
@@ -50,28 +97,13 @@ let corporation ==
     END;
   {{corporation; address; phone; email; fax; www}}
 
-let date_exact_time ==
-  | DATE;
-    date = VALUE;
-    time = option(line(TIME));
-    END;
-    {{date;time}}
-
-let date_phrase ==
-  | DATE;
-    date = VALUE;
-    phrase = option(line(PHRASE));
-    END;
-    {{date;phrase}}
-
 let data ==
   | DATA;
     data = VALUE;
     date_time = option(date_exact_time);
     copyright = option(line(COPR));
     END;
-    {
-      {data; date_time; copyright}}
+  {{data; date_time; copyright}}
 
 let source ==
   | SOUR;
@@ -82,14 +114,6 @@ let source ==
     data = option(data);
     END;
   {{source; version ; name; corporation; data}}
-
-let plac ==
-  | PLAC;
-    FORM;
-    s = VALUE;
-    END;
-    END;
-  {s}
 
 let translation ==
   | TRAN;
@@ -130,13 +154,6 @@ let sour_data ==
     END;
   {{date_time_phrase; texts}}
 
-let role ==
-  | ROLE;
-    role = VALUE;
-    phrase = option(line(PHRASE));
-    END;
-  {{role;phrase}}
-
 let source_event ==
   | EVEN;
     event = VALUE;
@@ -170,46 +187,15 @@ let source_citation ==
     event = option(source_event);
     quality = option(line(QUAY));
     multimedia_links = list(multimedia_link);
-    notes = list(note);
+    notes = list(note_structure);
     END;
   {{xref;page;data;event;quality; notes; multimedia_links}}
 
-let note ==
-  | NOTE;
-    note = VALUE;
-    mime = option(line(MIME));
-    language = option(line(LANG));
-    translation = list(translation);
-    source_citation = list(source_citation);
+let plac ==
+  | PLAC;
+    s = line(FORM);
     END;
-  {Note {
-    note;mime;language;translation;source_citation}}
-  | SNOTE;
-    xref = XREF;
-    END;
-  {
-    Snote xref}
-
-let head ==
-| HEAD; GEDC; version = line(VERS); END;
-    schema = option(schema);
-    source = option(source);
-    destination = option(line(DEST));
-    date_time = option(date_exact_time);
-    submitter = option(xref_line(SUBM));
-    copyright = option(line(COPR));
-    language = option(line(LANG));
-    default_format = option(plac);
-    note = option(note);
-  END;
-  {{version;schema;source; destination; date_time; copyright; language; submitter; default_format; note;}}
-
-let place_translation ==
-  | TRAN;
-    translation = VALUE;
-    language = line(LANG);
-    END;
-  {{translation; language}}
+  {s}
 
 let map ==
   | MAP;
@@ -218,46 +204,10 @@ let map ==
     END;
   {{latitude;longitude}}
 
-let exid ==
-  | EXID;
-    exid = VALUE;
-    t = option(line(TYPE));
-    END;
-  {{exid;type'=t}}
-
-let place ==
-  | PLAC;
-    place = VALUE;
-    form = option(line(FORM));
-    language = option(line(LANG));
-    translations = list(place_translation);
-    map = option(map);
-    exid = list(exid);
-    notes = list(note);
-    END;
-  {{place;form;language;translations;map;exid;notes}}
-
-let role_phrase ==
-  | ROLE;
-    role = VALUE;
-    phrase = option(line(PHRASE));
-    END;
-  {{role; phrase}}
-
-let association_structure ==
-  | ASSO;
-    xref = XREF;
-    phrase = option(line(PHRASE));
-    role_phrase = role_phrase;
-    notes = list(note);
-    source_citations = list(source_citation);
-    END;
-  {{xref;phrase;role_phrase;notes;source_citations}}
-
 let event_detail ==
   | date = option(date_time_phrase);
-    place = option(place);
-    address = option(address);
+    place = option(place_structure);
+    address = option(address_structure);
     phones = list(line(PHON));
     emails = list(line(EMAIL));
     faxes = list(line(FAX));
@@ -268,19 +218,11 @@ let event_detail ==
     restriction = option(line(RESN));
     sort_date = option(s_date_time_phrase);
     associations = list(association_structure);
-    notes = list(note);
+    notes = list(note_structure);
     source_citations = list(source_citation);
     multimedia_links = list(multimedia_link);
     uids = list(line(UID));
   {{date;place;address;phones;emails;faxes;wwws;agency;religion;cause;restriction;sort_date;associations;notes;source_citations;multimedia_links;uids}}
-
-(* TODO make a function like line but with 2 param for rules like that? *)
-let age_phrase ==
-  | AGE;
-    age = VALUE;
-    phrase = option(line(PHRASE));
-    END;
-  {{age;phrase}}
 
 let aux_event_detail(X) ==
   | X;
@@ -293,6 +235,164 @@ let family_event_detail ==
     wife = option(aux_event_detail(WIFE));
     event_detail = event_detail;
   {{husb; wife; event_detail}}
+
+let ordinance_status ==
+  | STAT; status = VALUE; date_time = date_exact_time; END;
+  {{status; date_time}}
+
+let lds_ordinance_detail ==
+  | date_time_phrase = option(date_time_phrase);
+    temple = option(line(TEMP));
+    place = option(place_structure);
+    status = option(ordinance_status);
+    notes = list(note_structure);
+    source_citations = list(source_citation);
+  {{date_time_phrase; temple; place; status; notes; source_citations}}
+
+let lds_spouse_sealing ==
+  | SLGS; o = lds_ordinance_detail; END;
+  {o}
+
+let change_date ==
+  | CHAN;
+    date_time = date_exact_time;
+    notes = list(note_structure);
+    END;
+  {{date_time; notes}}
+
+let creation_date ==
+  | CREA;
+    date_time = date_exact_time;
+    END;
+  {date_time}
+
+let personal_name_pieces ==
+  | name_prefixes = list(line(NPFX));
+    given_names = list(line(GIVN));
+    nicknames = list(line(NICK));
+    surname_prefixes = list(line(SPFX));
+    surnames = list(line(SURN));
+    name_suffixes = list(line(NSFX));
+  {{name_prefixes;given_names;nicknames;surname_prefixes;surnames;name_suffixes}}
+
+let personal_name_translation ==
+  | TRAN;
+    name = VALUE;
+    language = line(LANG);
+    name_pieces = personal_name_pieces;
+    END;
+  {{name; language; name_pieces}}
+
+let individual_event_detail ==
+  | event_detail = event_detail;
+    age_phrase = option(age_phrase);
+  {{event_detail;age_phrase}}
+
+let family_child ==
+  | FAMC;
+    xref = XREF;
+    adoption_phrase = option(adoption_phrase);
+    END;
+  {{xref; adoption_phrase}}
+
+let lds_individual_ordinance ==
+  | BAPL; detail = lds_ordinance_detail; END;
+  {Lds_baptism detail}
+  | CONL; detail = lds_ordinance_detail; END;
+  {Lds_confirmation detail}
+  | ENDL; detail = lds_ordinance_detail; END;
+  {Lds_endowment detail}
+  | INIL; detail = lds_ordinance_detail; END;
+  {Lds_initiatory detail}
+  | SLGC; detail = lds_ordinance_detail; xref = xref_line(FAMC); END;
+  {Lds_sealing (detail, xref)}
+
+let individual_famc ==
+  | FAMC;
+    xref = XREF;
+    pedigree = option(value_phrase(PEDI));
+    status = option(value_phrase(STAT));
+    notes = list(note_structure);
+    END;
+  {{xref;pedigree;status;notes}}
+
+let family_spouse ==
+  | FAMS;
+    xref = XREF;
+    notes = list(note_structure);
+    END;
+  {{xref;notes}}
+
+let translation_format ==
+    | TRAN; translation = VALUE; format = line(FORM); END;
+  {{translation; format}}
+
+let multimedia_file ==
+  | FILE;
+    file = VALUE;
+    FORM;
+    media_type = VALUE;
+    medium_phrase = option(value_phrase(MEDI));
+    END;
+    title = option(line(TITL));
+    translations = list(translation_format);
+    END;
+  {{file;media_type;medium_phrase;title;translations}}
+
+let source_data_event ==
+  | EVEN;
+    event = VALUE;
+    date_phrase = option(value_phrase(DATE));
+    place = option(place_structure);
+    END;
+  {{event;date_phrase;place}}
+
+let source_data ==
+  | DATA;
+    events = list(source_data_event);
+    agency = option(line(AGNC));
+    notes = list(note_structure);
+    END;
+  {{events;agency;notes}}
+
+let call_number ==
+  | CALN; call_number = VALUE;
+    medium_phrase = option(value_phrase(MEDI));
+    END;
+  {{call_number;medium_phrase}}
+
+let source_repository_citation ==
+  | REPO; xref = XREF;
+    notes = list(note_structure);
+    call_numbers = list(call_number);
+    END;
+  {{xref;notes;call_numbers}}
+
+(* -- Substructures -- *)
+
+let address_structure ==
+  | ADDR;
+    address = VALUE;
+    adr1 = option(line(ADR1));
+    adr2 = option(line(ADR2));
+    adr3 = option(line(ADR3));
+    city = option(line(CITY));
+    state = option(line(STAE));
+    postal_code = option(line(POST));
+    country = option(line(CTRY));
+    END;
+  {{ address; adr1; adr2; adr3; city; state;
+    postal_code; country }}
+
+let association_structure ==
+  | ASSO;
+    xref = XREF;
+    phrase = option(line(PHRASE));
+    role_phrase = role_phrase;
+    notes = list(note_structure);
+    source_citations = list(source_citation);
+    END;
+  {{xref;phrase;role_phrase;notes;source_citations}}
 
 let family_attribute_structure ==
   | NCHI;
@@ -352,39 +452,6 @@ let family_event_structure ==
     END;
   {Familly_Event {value= Some value; type'= Some t; family_event_detail}}
 
-let non_event_structure ==
-  | NO; value = VALUE; date_phrase = option(date_phrase); notes = list(note); source_citations = list (source_citation); END;
-  {{value; date_phrase; notes; source_citations}}
-
-(* TODO refacto *)
-let value_phrase(X) ==
-  | X;
-    value = VALUE;
-    phrase = option(line(PHRASE));
-    END;
-  {{value ;phrase}}
-
-let xref_phrase(X) ==
-  | X; xref = XREF; phrase = option(line(PHRASE)); END;
-  {{xref; phrase}}
-
-let ordinance_status ==
-  | STAT; status = VALUE; date_time = date_exact_time; END;
-  {{status; date_time}}
-
-let lds_ordinance_detail ==
-  | date_time_phrase = option(date_time_phrase);
-    temple = option(line(TEMP));
-    place = option(place);
-    status = option(ordinance_status);
-    notes = list(note);
-    source_citations = list(source_citation);
-  {{date_time_phrase; temple; place; status; notes; source_citations}}
-
-let lds_spouse_sealing ==
-  | SLGS; o = lds_ordinance_detail; END;
-  {o}
-
 let identifier_structure ==
   | REFN; reference = VALUE; t = option(line(TYPE)); END;
   {Reference (reference, t) }
@@ -392,80 +459,6 @@ let identifier_structure ==
   {Uid uid}
   | EXID; exid = VALUE; t = option(line(TYPE)); END;
   {Exid (exid, t) }
-
-let change_date ==
-  | CHAN;
-    date_time = date_exact_time;
-    notes = list(note);
-    END;
-  {{date_time; notes}}
-
-let creation_date ==
-  | CREA;
-    date_time = date_exact_time;
-    END;
-  {date_time}
-
-let family_record ==
-  | xref = XREF; FAM;
-    restriction = option(line(RESN));
-    attributes = list(family_attribute_structure);
-    events = list(family_event_structure);
-    non_events = list(non_event_structure);
-    husband = option(xref_phrase(HUSB));
-    wife = option(xref_phrase(WIFE));
-    children = list(xref_phrase(CHIL));
-    associations = list(association_structure);
-    submitters = list(xref_line(SUBM));
-    lds_spouse_sealing = list(lds_spouse_sealing);
-    identifiers = list(identifier_structure);
-    notes = list(note);
-    source_citations = list(source_citation);
-    multimedia_links = list(multimedia_link);
-    change_date = option(change_date);
-    creation_date = option(creation_date);
-    END;
-  {Fam {xref; restriction; attributes; events; non_events; husband; wife; children; associations; submitters; lds_spouse_sealing;
-  identifiers; notes; source_citations; multimedia_links; change_date; creation_date}}
-
-let type_phrase ==
-  | TYPE; t = VALUE;
-    phrase = option(line(PHRASE));
-    END;
-  {{type'=t;phrase}}
-
-let personal_name_pieces ==
-  | name_prefixes = list(line(NPFX));
-    given_names = list(line(GIVN));
-    nicknames = list(line(NICK));
-    surname_prefixes = list(line(SPFX));
-    surnames = list(line(SURN));
-    name_suffixes = list(line(NSFX));
-  {{name_prefixes;given_names;nicknames;surname_prefixes;surnames;name_suffixes}}
-
-let personal_name_translation ==
-  | TRAN;
-    name = VALUE;
-    language = line(LANG);
-    name_pieces = personal_name_pieces;
-    END;
-  {{name; language; name_pieces}}
-
-let personal_name_structure ==
-  | NAME;
-    name = VALUE;
-    type_phrase = option(type_phrase);
-    name_pieces = personal_name_pieces;
-    translations = list(personal_name_translation);
-    notes = list(note);
-    source_citations = list(source_citation);
-    END;
-  {{name; type_phrase; name_pieces; translations; notes; source_citations}}
-
-let individual_event_detail ==
-  | event_detail = event_detail;
-    age_phrase = option(age_phrase);
-  {{event_detail;age_phrase}}
 
 let aux_individual_attribute_structure(X) ==
   | X; value = VALUE;
@@ -498,7 +491,6 @@ let individual_attribute_structure ==
 | o =  aux_type_individual_attribute_structure(IDNO); {Identification_number o}
 | o =  aux_type_individual_attribute_structure(FACT); {Fact_indi o}
 
-
 let aux_individual_event_structure(X) ==
   | X;
     value = option(VALUE);
@@ -521,20 +513,6 @@ let aux_famc_individual_event_structure(X) ==
     | Some xref -> Some {xref; adoption_phrase=None}
   in
     {value;type'=t;event_detail;family_child}}
-
-let adoption_phrase ==
-  | ADOP;
-    adoption = VALUE;
-    phrase = option(line(PHRASE));
-    END;
-  {{adoption; phrase}}
-
-let family_child ==
-  | FAMC;
-    xref = XREF;
-    adoption_phrase = option(adoption_phrase);
-    END;
-  {{xref; adoption_phrase}}
 
 let individual_event_structure ==
 | o = aux_individual_event_structure(BAPM); {Baptism o}
@@ -573,42 +551,68 @@ let individual_event_structure ==
   END;
  {Adoption {value;type'=t;event_detail; family_child}}
 
-let lds_individual_ordinance ==
-  | BAPL; detail = lds_ordinance_detail; END;
-  {Lds_baptism detail}
-  | CONL; detail = lds_ordinance_detail; END;
-  {Lds_confirmation detail}
-  | ENDL; detail = lds_ordinance_detail; END;
-  {Lds_endowment detail}
-  | INIL; detail = lds_ordinance_detail; END;
-  {Lds_initiatory detail}
-  | SLGC; detail = lds_ordinance_detail; xref = xref_line(FAMC); END;
-  {Lds_sealing (detail, xref)}
+let non_event_structure ==
+  | NO; value = VALUE; date_phrase = option(date_phrase); notes = list(note_structure); source_citations = list (source_citation); END;
+  {{value; date_phrase; notes; source_citations}}
 
-let individual_famc ==
-  | FAMC;
-    xref = XREF;
-    pedigree = option(value_phrase(PEDI));
-    status = option(value_phrase(STAT));
-    notes = list(note);
+let note_structure ==
+  | NOTE;
+    note = VALUE;
+    mime = option(line(MIME));
+    language = option(line(LANG));
+    translation = list(translation);
+    source_citation = list(source_citation);
     END;
-  {{xref;pedigree;status;notes}}
+  {Note {note;mime;language;translation;source_citation}}
+  | SNOTE; xref = XREF; END;
+  {Snote xref}
 
-let family_spouse ==
-  | FAMS;
-    xref = XREF;
-    notes = list(note);
+let personal_name_structure ==
+  | NAME;
+    name = VALUE;
+    type_phrase = option(type_phrase);
+    name_pieces = personal_name_pieces;
+    translations = list(personal_name_translation);
+    notes = list(note_structure);
+    source_citations = list(source_citation);
     END;
-  {{xref;notes}}
+  {{name; type_phrase; name_pieces; translations; notes; source_citations}}
 
-(*
-  +1 <<IDENTIFIER_STRUCTURE>>              {0:M}
-  +1 <<NOTE_STRUCTURE>>                    {0:M}
-  +1 <<SOURCE_CITATION>>                   {0:M}
-  +1 <<MULTIMEDIA_LINK>>                   {0:M}
-  +1 <<CHANGE_DATE>>                       {0:1}
-  +1 <<CREATION_DATE>>                     {0:1}
-*)
+let place_structure ==
+  | PLAC;
+    place = VALUE;
+    form = option(line(FORM));
+    language = option(line(LANG));
+    translations = list(place_translation);
+    map = option(map);
+    exid = list(exid);
+    notes = list(note_structure);
+    END;
+  {{place;form;language;translations;map;exid;notes}}
+
+(* -- Records -- *)
+
+let family_record ==
+  | xref = XREF; FAM;
+    restriction = option(line(RESN));
+    attributes = list(family_attribute_structure);
+    events = list(family_event_structure);
+    non_events = list(non_event_structure);
+    husband = option(xref_phrase(HUSB));
+    wife = option(xref_phrase(WIFE));
+    children = list(xref_phrase(CHIL));
+    associations = list(association_structure);
+    submitters = list(xref_line(SUBM));
+    lds_spouse_sealing = list(lds_spouse_sealing);
+    identifiers = list(identifier_structure);
+    notes = list(note_structure);
+    source_citations = list(source_citation);
+    multimedia_links = list(multimedia_link);
+    change_date = option(change_date);
+    creation_date = option(creation_date);
+    END;
+  {Fam {xref; restriction; attributes; events; non_events; husband; wife; children; associations; submitters; lds_spouse_sealing;
+  identifiers; notes; source_citations; multimedia_links; change_date; creation_date}}
 
 let individual_record ==
   | xref = XREF; INDI;
@@ -627,7 +631,7 @@ let individual_record ==
     ancestor_interests = list(xref_line(ANCI));
     descendant_interests = list(xref_line(DESI));
     identifiers = list(identifier_structure);
-    notes = list(note);
+    notes = list(note_structure);
     source_citations = list(source_citation);
     multimedia_links = list(multimedia_link);
     change_date = option(change_date);
@@ -636,28 +640,12 @@ let individual_record ==
   {Individual {xref;restriction; names; sex; attributes; events; non_events; lds_individual_ordinances;family_childs;family_spouses; submitters; associations;aliases;ancestor_interests;descendant_interests;
   identifiers;notes;source_citations;multimedia_links;change_date;creation_date}}
 
-let translation_format ==
-    | TRAN; translation = VALUE; format = line(FORM); END;
-  {{translation; format}}
-
-let multimedia_file ==
-  | FILE;
-    file = VALUE;
-    FORM;
-    media_type = VALUE;
-    medium_phrase = option(value_phrase(MEDI));
-    END;
-    title = option(line(TITL));
-    translations = list(translation_format);
-    END;
-  {{file;media_type;medium_phrase;title;translations}}
-
 let multimedia_record ==
   | xref = XREF; OBJE;
     restriction = option(line(RESN));
     files = nonempty_list(multimedia_file);
     identifiers = list(identifier_structure);
-    notes = list(note);
+    notes = list(note_structure);
     source_citations = list(source_citation);
     change_date = option(change_date);
     creation_date = option(creation_date);
@@ -667,12 +655,12 @@ let multimedia_record ==
 let repository_record ==
   | xref = XREF; REPO;
     name = line(NAME);
-    address = option(address);
+    address = option(address_structure);
     phones = list(line(PHON));
     emails = list(line(EMAIL));
     faxes = list(line(FAX));
     wwws = list(line(WWW));
-    notes = list(note);
+    notes = list(note_structure);
     identifiers = list(identifier_structure);
     change_date = option(change_date);
     creation_date = option(creation_date);
@@ -692,37 +680,6 @@ let shared_note_record ==
     END;
   {Shared_note {xref;note;mime;language;translations;source_citations;identifiers;change_date;creation_date}}
 
-
-let source_data_event ==
-  | EVEN;
-    event = VALUE;
-    date_phrase = option(value_phrase(DATE));
-    place = option(place);
-    END;
-  {{event;date_phrase;place}}
-
-
-let source_data ==
-  | DATA;
-    events = list(source_data_event);
-    agency = option(line(AGNC));
-    notes = list(note);
-    END;
-  {{events;agency;notes}}
-
-let call_number ==
-  | CALN; call_number = VALUE;
-    medium_phrase = option(value_phrase(MEDI));
-    END;
-  {{call_number;medium_phrase}}
-
-let source_repository_citation ==
-  | REPO; xref = XREF;
-    notes = list(note);
-    call_numbers = list(call_number);
-    END;
-  {{xref;notes;call_numbers}}
-
 let source_record ==
   | xref = XREF; SOUR;
     data = option(source_data);
@@ -733,33 +690,17 @@ let source_record ==
     text = option(text);
     source_repository_citations = list(source_repository_citation);
     identifiers = list(identifier_structure);
-    notes = list(note);
+    notes = list(note_structure);
     multimedia_links = list(multimedia_link);
     change_date = option(change_date);
     creation_date = option(creation_date);
     END;
   {Source {xref;data;author;title;abbreviation;publication;text;source_repository_citations;identifiers;notes;multimedia_links;change_date;creation_date}}
 
-(*
-n @XREF:SUBM@ SUBM                         {1:1}  g7:record-SUBM
-  +1 NAME <Text>                           {1:1}  g7:NAME
-  +1 <<ADDRESS_STRUCTURE>>                 {0:1}
-  +1 PHON <Special>                        {0:M}  g7:PHON
-  +1 EMAIL <Special>                       {0:M}  g7:EMAIL
-  +1 FAX <Special>                         {0:M}  g7:FAX
-  +1 WWW <Special>                         {0:M}  g7:WWW
-  +1 <<MULTIMEDIA_LINK>>                   {0:M}
-  +1 LANG <Language>                       {0:M}  g7:SUBM-LANG
-  +1 <<IDENTIFIER_STRUCTURE>>              {0:M}
-  +1 <<NOTE_STRUCTURE>>                    {0:M}
-  +1 <<CHANGE_DATE>>                       {0:1}
-  +1 <<CREATION_DATE>>                     {0:1}
-*)
-
 let submitter_record ==
   | xref = XREF; SUBM;
     name = line(NAME);
-    address = option(address);
+    address = option(address_structure);
     phones = list(line(PHON));
     emails = list(line(EMAIL));
     faxes = list(line(FAX));
@@ -767,11 +708,25 @@ let submitter_record ==
     multimedia_links = list(multimedia_link);
     languages = list(line(LANG));
     identifiers = list(identifier_structure);
-    notes = list(note);
+    notes = list(note_structure);
     change_date = option(change_date);
     creation_date = option(creation_date);
     END;
   {Submitter {xref;name;address;phones;emails;faxes;wwws;multimedia_links;languages;identifiers;notes;change_date;creation_date}}
+
+let head ==
+| HEAD; GEDC; version = line(VERS); END;
+    schema = option(schema);
+    source = option(source);
+    destination = option(line(DEST));
+    date_time = option(date_exact_time);
+    submitter = option(xref_line(SUBM));
+    copyright = option(line(COPR));
+    language = option(line(LANG));
+    default_format = option(plac);
+    note = option(note_structure);
+  END;
+  {{version;schema;source; destination; date_time; copyright; language; submitter; default_format; note;}}
 
 let record ==
   | fam = family_record;
