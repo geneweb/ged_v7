@@ -13,12 +13,17 @@ let () = print_endline "Hello, World!"
 let () =
   let s =
     read_file
-      (String.concat Filename.dir_sep [ "test"; "assets"; "maximal70.ged" ])
+      (String.concat Filename.dir_sep [ "test"; "assets"; "minimal70.ged" ])
   in
-  Format.printf "--- @.";
+  Format.printf "--- Ast_1 @.";
   let lexbuf = Sedlexing.Utf8.from_string s in
   let tokens = Line.Ast_1.parse [] lexbuf in
   List.iter Line.Ast_1.print_token tokens;
+  Format.printf "--- @.";
+  Format.printf "@.";
+  Format.printf "--- Ast_2 @.";
+  let tokens = Line.Ast_2.make tokens in
+  List.iter Line.Ast_2.print_token tokens;
   Format.printf "--- @.";
   (*
   let tokens = Line.Ast_2.make tokens in
