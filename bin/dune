@@ -1,0 +1,7 @@
+(executable
+ (public_name ged_v7)
+ (name main)
+ (modules line main)
+ (libraries sedlex)
+ (preprocess
+  (pps sedlex.ppx)))
