@@ -1,3 +1,6 @@
+(* TODO rename some type to *_structure *)
+(* TODO remove useless line_line_opt type *)
+
 type schema = string list
 
 type address = {

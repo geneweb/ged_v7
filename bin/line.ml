@@ -62,6 +62,7 @@ module Ast_1 = struct
           Some (Xref s)
       | line_str ->
           let s = Sedlexing.Utf8.lexeme buf in
+          (* TODO if starts_with "@@" remove first "@" *)
           Some (Value s)
       | _ -> raise (Lexing_error "Reached impossible place in rule_value")
     in
