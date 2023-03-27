@@ -1,2 +1,17 @@
 (test
- (name ged_v7))
+ (modules ged_v7)
+ (name ged_v7)
+ (libraries ged_v7 util)
+ (deps
+  (glob_files assets/*.ged)))
+
+(test
+ (modules version)
+ (libraries ged_v7 util)
+ (name version)
+ (deps
+  (glob_files assets/*.ged)))
+
+(library
+ (name util)
+ (modules util))

@@ -1,0 +1,11 @@
+(library
+ (public_name ged_v7)
+ (name ged_v7)
+ (modules ged_v7 lexer parser token types version)
+ (libraries menhirLib sedlex re)
+ (preprocess
+  (pps sedlex.ppx ppx_deriving.show)))
+
+(menhir
+ (modules parser)
+ (flags --explain))
