@@ -1,0 +1,4 @@
+(library
+ (name version)
+ (modules version)
+ (libraries re))

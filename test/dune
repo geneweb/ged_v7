@@ -1,2 +1,10 @@
 (test
+ (modules ged_v7)
  (name ged_v7))
+
+(test
+ (modules version)
+ (libraries version)
+ (name version)
+ (deps
+  (glob_files assets/*.ged)))
