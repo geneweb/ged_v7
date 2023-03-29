@@ -12,6 +12,7 @@ let read_file fname =
 
 let _files =
   [
+    "abc.ged";
     "escapes.ged";
     "long-url.ged";
     "minimal70.ged";
@@ -26,8 +27,7 @@ let _files =
 
 let () =
   let s =
-    read_file
-      (String.concat Filename.dir_sep [ "test"; "assets"; "maximal70.ged" ])
+    read_file (String.concat Filename.dir_sep [ "test"; "assets"; "abc.ged" ])
   in
   Format.printf "--- Ast_1 @.";
   let lexbuf = Sedlexing.Utf8.from_string s in
