@@ -195,12 +195,13 @@ module Ast_2 = struct
     in
     flatten_cont [] l |> List.rev
 
+  (* TODO convert to Menhir_parser.token in Ast_1 *)
   let to_menhir_tokens tokens =
     List.map
       (function
         | End -> Menhir_parser.END
         | Eof -> EOF
-        | Tag s -> Token.of_string s
+        | Tag s -> Token.tag_of_string s
         | Xref s ->
             let ptr = if s = "@VOID@" then None else Some s in
             XREF ptr

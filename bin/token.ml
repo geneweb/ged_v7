@@ -2,7 +2,7 @@ open Menhir_parser
 
 exception Unkwown_tag_name of string
 
-let of_string s =
+let tag_of_string s =
   match s with
   | "HEAD" -> HEAD
   | "GEDC" -> GEDC
