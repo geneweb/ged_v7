@@ -14,8 +14,17 @@
 
 (* -- Helper functions -- *)
 
+(* Note that production LineVal does not match the empty string. Because empty payloads and missing payloads are considered equivalent, both a structure with no payload and a structure with the empty string as its payload are encoded with no LineVal and no space after the Tag. *)
+let value_opt ==
+  | v = option(VALUE);
+  {v}
+
+let value ==
+  | v = value_opt;
+  {Option.value ~default:"" v}
+
 let line(X) ==
-  | X; v = VALUE; END;
+  | X; v = value; END;
   { v }
 
 let xref_line(X) ==
@@ -24,14 +33,14 @@ let xref_line(X) ==
 
 let line_line(X,Y) ==
   | X;
-    a = VALUE;
+    a = value;
     b = line(Y);
     END;
   {a,b}
 
 let line_line_opt(X,Y) ==
   | X;
-    a = VALUE;
+    a = value;
     b = option(line(Y));
     END;
   {a,b}
@@ -88,7 +97,7 @@ let schema ==
 
 let corporation ==
   | CORP;
-    corporation = VALUE;
+    corporation = value;
     address = option(address_structure);
     phone = list(line(PHON));
     email = list(line(EMAIL));
@@ -99,7 +108,7 @@ let corporation ==
 
 let data ==
   | DATA;
-    data = VALUE;
+    data = value;
     date_time = option(date_exact_time);
     copyright = option(line(COPR));
     END;
@@ -107,7 +116,7 @@ let data ==
 
 let source ==
   | SOUR;
-    source = VALUE;
+    source = value;
     version = option(line(VERS));
     name = option(line(NAME));
     corporation = option(corporation);
@@ -117,7 +126,7 @@ let source ==
 
 let translation ==
   | TRAN;
-    translation = VALUE;
+    translation = value;
     mime = option(line(MIME));
     language = option(line(LANG));
     END;
@@ -125,7 +134,7 @@ let translation ==
 
 let aux_date_time_phrase(X) ==
   | X;
-    date = VALUE;
+    date = value;
     time = option(line(TIME));
     phrase = option(line(PHRASE));
     END;
@@ -141,7 +150,7 @@ let s_date_time_phrase ==
 
 let text ==
   | TEXT;
-    text = VALUE;
+    text = value;
     mime = option(line(MIME));
     language = option(line(LANG));
     END;
@@ -156,7 +165,7 @@ let sour_data ==
 
 let source_event ==
   | EVEN;
-    event = VALUE;
+    event = value;
     phrase = option(line(PHRASE));
     role = option(role);
     END;
@@ -237,7 +246,7 @@ let family_event_detail ==
   {{husb; wife; event_detail}}
 
 let ordinance_status ==
-  | STAT; status = VALUE; date_time = date_exact_time; END;
+  | STAT; status = value; date_time = date_exact_time; END;
   {{status; date_time}}
 
 let lds_ordinance_detail ==
@@ -277,7 +286,7 @@ let personal_name_pieces ==
 
 let personal_name_translation ==
   | TRAN;
-    name = VALUE;
+    name = value;
     language = line(LANG);
     name_pieces = personal_name_pieces;
     END;
@@ -324,14 +333,14 @@ let family_spouse ==
   {{xref;notes}}
 
 let translation_format ==
-    | TRAN; translation = VALUE; format = line(FORM); END;
+    | TRAN; translation = value; format = line(FORM); END;
   {{translation; format}}
 
 let multimedia_file ==
   | FILE;
-    file = VALUE;
+    file = value;
     FORM;
-    media_type = VALUE;
+    media_type = value;
     medium_phrase = option(value_phrase(MEDI));
     END;
     title = option(line(TITL));
@@ -341,7 +350,7 @@ let multimedia_file ==
 
 let source_data_event ==
   | EVEN;
-    event = VALUE;
+    event = value;
     date_phrase = option(value_phrase(DATE));
     place = option(place_structure);
     END;
@@ -356,7 +365,7 @@ let source_data ==
   {{events;agency;notes}}
 
 let call_number ==
-  | CALN; call_number = VALUE;
+  | CALN; call_number = value;
     medium_phrase = option(value_phrase(MEDI));
     END;
   {{call_number;medium_phrase}}
@@ -372,7 +381,7 @@ let source_repository_citation ==
 
 let address_structure ==
   | ADDR;
-    address = VALUE;
+    address = value;
     adr1 = option(line(ADR1));
     adr2 = option(line(ADR2));
     adr3 = option(line(ADR3));
@@ -396,20 +405,20 @@ let association_structure ==
 
 let family_attribute_structure ==
   | NCHI;
-    nb_children = VALUE;
+    nb_children = value;
     t = option(line(TYPE));
     (* supposed to be optional, but conflict because the record can be empty ...*)
     family_event_detail = family_event_detail;
     END;
   {Number_of_children (nb_children, t, family_event_detail)}
   | RESI;
-    nb_children = VALUE;
+    nb_children = value;
     t = option(line(TYPE));
     family_event_detail = family_event_detail;
     END;
   {Residence (nb_children, t, family_event_detail)}
   | FACT;
-    nb_children = VALUE;
+    nb_children = value;
     t = line(TYPE);
     family_event_detail = family_event_detail;
     END;
@@ -417,7 +426,7 @@ let family_attribute_structure ==
 
 let aux_family_event_structure(X) ==
   | X;
-    value = option(VALUE);
+    value = value_opt;
     t = option(line(TYPE));
     family_event_detail = family_event_detail;
     END;
@@ -446,22 +455,22 @@ let family_event_structure ==
   {Marriage_settlement o}
   | (* for EVEN, it's VALUE and TYPE are not optional .. *)
     EVEN;
-    value = VALUE;
+    v = value;
     t = line(TYPE);
     family_event_detail = family_event_detail;
     END;
-  {Familly_Event {value= Some value; type'= Some t; family_event_detail}}
+  {Familly_Event {value = Some v; type'= Some t; family_event_detail}}
 
 let identifier_structure ==
-  | REFN; reference = VALUE; t = option(line(TYPE)); END;
+  | REFN; reference = value; t = option(line(TYPE)); END;
   {Reference (reference, t) }
-  | UID; uid = VALUE; END;
+  | UID; uid = value; END;
   {Uid uid}
-  | EXID; exid = VALUE; t = option(line(TYPE)); END;
+  | EXID; exid = value; t = option(line(TYPE)); END;
   {Exid (exid, t) }
 
 let aux_individual_attribute_structure(X) ==
-  | X; value = VALUE;
+  | X; value = value;
     t = option(line(TYPE));
     event = individual_event_detail;
     END;
@@ -469,7 +478,7 @@ let aux_individual_attribute_structure(X) ==
 
 (* same but force to have type *)
 let aux_type_individual_attribute_structure(X) ==
-  | X; value = VALUE;
+  | X; value = value;
     t = line(TYPE);
     event = individual_event_detail;
     END;
@@ -493,7 +502,7 @@ let individual_attribute_structure ==
 
 let aux_individual_event_structure(X) ==
   | X;
-    value = option(VALUE);
+    value = value_opt;
     t = option(line(TYPE));
     event_detail = individual_event_detail;
     END;
@@ -501,7 +510,7 @@ let aux_individual_event_structure(X) ==
 
 let aux_famc_individual_event_structure(X) ==
   | X;
-    value = option(VALUE);
+    value = value_opt;
     t = option(line(TYPE));
     event_detail = individual_event_detail;
     xref_opt = option(xref_line(FAMC));
@@ -536,15 +545,15 @@ let individual_event_structure ==
 | o = aux_individual_event_structure(WILL); {Will o}
 | (* like the others but type is not optional *)
     EVEN;
-    value = option(VALUE);
+    v = value;
     t = line(TYPE);
     event_detail = individual_event_detail;
     END;
-  {Event_indi {value;type'=Some t;event_detail; family_child = None}}
+  {Event_indi {value = Some v;type'=Some t;event_detail; family_child = None}}
 | o = aux_famc_individual_event_structure(BIRT); {Birth o}
 | o = aux_famc_individual_event_structure(CHR); {Christening o}
 | ADOP;
-  value = option(VALUE);
+  value = value_opt;
   t = option(line(TYPE));
   event_detail = individual_event_detail;
   family_child = option(family_child);
@@ -552,12 +561,12 @@ let individual_event_structure ==
  {Adoption {value;type'=t;event_detail; family_child}}
 
 let non_event_structure ==
-  | NO; value = VALUE; date_phrase = option(date_phrase); notes = list(note_structure); source_citations = list (source_citation); END;
+  | NO; value = value; date_phrase = option(date_phrase); notes = list(note_structure); source_citations = list (source_citation); END;
   {{value; date_phrase; notes; source_citations}}
 
 let note_structure ==
   | NOTE;
-    note = VALUE;
+    note = value;
     mime = option(line(MIME));
     language = option(line(LANG));
     translation = list(translation);
@@ -569,7 +578,7 @@ let note_structure ==
 
 let personal_name_structure ==
   | NAME;
-    name = VALUE;
+    name = value;
     type_phrase = option(type_phrase);
     name_pieces = personal_name_pieces;
     translations = list(personal_name_translation);
@@ -580,7 +589,7 @@ let personal_name_structure ==
 
 let place_structure ==
   | PLAC;
-    place = VALUE;
+    place = value;
     form = option(line(FORM));
     language = option(line(LANG));
     translations = list(place_translation);
@@ -669,7 +678,7 @@ let repository_record ==
 
 let shared_note_record ==
   | xref = XREF; SNOTE;
-    note = VALUE;
+    note = value;
     mime = option(line(MIME));
     language = option(line(LANG));
     translations = list(translation);
