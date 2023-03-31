@@ -10,29 +10,30 @@ let read_file fname =
   if String.starts_with ~prefix:bom s then String.sub s 3 (String.length s - 3)
   else s
 
-let _files =
+let files =
   [
-    "abc.ged";
+    "minimal70.ged";
+    "maximal70.ged";
     "escapes.ged";
     "long-url.ged";
-    "minimal70.ged";
-    "remarriage2.ged";
-    "spaces.ged";
     "extension-record.ged";
-    "maximal70.ged";
-    "remarriage1.ged";
     "same-sex-marriage.ged";
-    "voidptr.ged";
+    "spaces.ged";
+    "voidptr_reordered.ged";
+    "remarriage1_reordered.ged";
+    "remarriage2_reordered.ged";
   ]
 
-let () =
+let main file =
   let s =
-    read_file (String.concat Filename.dir_sep [ "test"; "assets"; "abc.ged" ])
+    read_file (String.concat Filename.dir_sep [ "test"; "assets"; file ])
   in
   Format.printf "--- Ast_1 @.";
   let lexbuf = Sedlexing.Utf8.from_string s in
   let tokens = Line.Ast_1.parse [] lexbuf in
+  (*
   List.iter Line.Ast_1.print_token tokens;
+  *)
   Format.printf "--- @.";
   Format.printf "@.";
   Format.printf "--- Ast_2 @.";
@@ -42,7 +43,7 @@ let () =
 
   let provider =
     let tokens = ref tokens in
-    Format.printf "@.@.@. --- MENHIR --- @.@.@.";
+    Format.printf "@.@.@. --- MENHIR --- %s @.@.@." file;
     let dummy_pos = Stdlib.Lexing.dummy_pos in
     fun () ->
       match !tokens with
@@ -58,3 +59,5 @@ let () =
   in
   let _gedcom = parser provider in
   ()
+
+let () = List.iter main files
