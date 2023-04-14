@@ -1,0 +1,3 @@
+This version parses GEDCOM v7.0 but with structures ordered as in the specification.
+But since structures can be in any order this tedious work is wasted and instead we have
+to use a tree of lists AST...
